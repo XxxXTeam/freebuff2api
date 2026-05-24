@@ -34,7 +34,6 @@ FREEBUFF_LOG_COLOR=true
 - `deepseek/deepseek-v4-pro`
 - `moonshotai/kimi-k2.6`
 - `minimax/minimax-m2.7`
-- `z-ai/glm-5.1`
 
 调试空返回或上游异常时：
 
