@@ -217,6 +217,42 @@ class CodebuffClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("当前 IP/区域", str(ctx.exception))
         self.assertIn("US", str(ctx.exception))
 
+    async def test_chat_stream_explains_session_model_mismatch_as_region_limit(self) -> None:
+        def session_model_mismatch(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                409,
+                json={
+                    "error": "session_model_mismatch",
+                    "message": (
+                        "Limited free access is only available with DeepSeek V4 Flash."
+                    ),
+                },
+            )
+
+        client = CodebuffClient(
+            Settings(
+                codebuff_token="token",
+                local_api_key=None,
+                request_timeout=1,
+            )
+        )
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(
+            transport=httpx.MockTransport(session_model_mismatch),
+            timeout=1,
+        )
+
+        try:
+            with self.assertRaises(CodebuffError) as ctx:
+                async for _ in client.chat_events({"messages": []}):
+                    pass
+        finally:
+            await client.aclose()
+
+        self.assertEqual(ctx.exception.status_code, 409)
+        self.assertIn("当前 IP/区域", str(ctx.exception))
+        self.assertIn("US", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

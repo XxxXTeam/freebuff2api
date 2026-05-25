@@ -13,6 +13,7 @@ from .codebuff import (
     CodebuffClient,
     CodebuffError,
     FreebuffRun,
+    FreebuffSessionLease,
     SessionManager,
     utc_now_iso,
 )
@@ -121,8 +122,9 @@ async def chat_completions(request: Request) -> Any:
             render_debug(body, settings.log_body_chars),
         )
 
+    lease: FreebuffSessionLease | None = None
     try:
-        session = await _sessions(request).ensure_session(
+        lease = await _sessions(request).acquire_session(
             model_config.session_id,
             messages=body.get("messages"),
         )
@@ -132,7 +134,7 @@ async def chat_completions(request: Request) -> Any:
         trace_session_id = str(uuid.uuid4())
         payload = build_upstream_payload(
             body,
-            session=session,
+            session=lease.session,
             run_id=run.payload_run_id,
             client_id=settings.client_id,
             trace_session_id=trace_session_id,
@@ -146,6 +148,8 @@ async def chat_completions(request: Request) -> Any:
                 render_debug(payload, settings.log_body_chars),
             )
     except CodebuffError as error:
+        if lease is not None:
+            await lease.aclose()
         logger.warning(
             "failed to prepare chat completion: %s",
             error,
@@ -153,12 +157,14 @@ async def chat_completions(request: Request) -> Any:
         )
         return _error_response(error)
     except Exception as error:
+        if lease is not None:
+            await lease.aclose()
         logger.exception("failed to prepare chat completion")
         return _error_response(error)
 
     if body.get("stream") is True:
         return StreamingResponse(
-            _stream_openai_chunks(request, payload, run),
+            _stream_openai_chunks(request, payload, run, session_lease=lease),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache, no-transform",
@@ -172,12 +178,16 @@ async def chat_completions(request: Request) -> Any:
         return JSONResponse(response)
     except Exception as error:
         return _error_response(error)
+    finally:
+        await lease.aclose()
 
 
 async def _stream_openai_chunks(
     request: Request,
     payload: dict[str, Any],
     run: FreebuffRun,
+    *,
+    session_lease: FreebuffSessionLease | None = None,
 ) -> AsyncIterator[bytes]:
     message_id: str | None = None
     client = _client(request)
@@ -230,6 +240,8 @@ async def _stream_openai_chunks(
         yield encode_sse("[DONE]")
     finally:
         _schedule_finalize_run(client, run, message_id)
+        if session_lease is not None:
+            await session_lease.aclose()
 
 
 async def _collect_completion(
