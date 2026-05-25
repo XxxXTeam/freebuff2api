@@ -2,6 +2,9 @@
 
 Codebuff Freebuff 的 OpenAI-compatible API
 
+<img width="480" height="1032" alt="image" src="https://github.com/user-attachments/assets/8a12f1ef-42ea-41eb-b47b-40d86550bbc9" />
+
+
 ## 接口
 
 - `GET /v1/models`
