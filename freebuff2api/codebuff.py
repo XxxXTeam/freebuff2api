@@ -201,6 +201,18 @@ class CodebuffClient:
             headers=self._headers(extra=headers_extra),
         )
 
+    async def fetch_free_model_ids(self) -> set[str]:
+        """Query upstream for the account's currently available free models.
+
+        `GET /api/v1/freebuff/session` returns `rateLimitsByModel` — the model ids
+        this account currently holds a free entitlement for. The always-on baseline
+        models (e.g. deepseek-v4-flash, mimo-v2.5) are merged in by
+        `models_response`, so callers only see the full catalog filtered to
+        availability.
+        """
+        data = await self.get_session()
+        return set(data.get("rateLimitsByModel") or {})
+
     async def create_session(self, model: str) -> FreebuffSession:
         data = await self._json(
             "POST",

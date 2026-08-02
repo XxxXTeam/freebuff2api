@@ -85,6 +85,7 @@ FREEBUFF_PROXY_URL=socks5h://127.0.0.1:1080
 - `moonshotai/kimi-k2.6`
 - `minimax/minimax-m2.7`
 - `minimax/minimax-m3`
+- `openai/gpt-5.6-luna`
 - `google/gemini-2.5-flash-lite`
 - `google/gemini-3.1-flash-lite-preview`
 - `google/gemini-3.1-pro-preview`

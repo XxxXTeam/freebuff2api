@@ -26,6 +26,29 @@ class OpenAICompatTests(unittest.TestCase):
             [model.id for model in ALL_MODELS],
         )
 
+    def test_models_response_filters_to_upstream_available_models(self) -> None:
+        response = models_response(
+            {"minimax/minimax-m3", "openai/gpt-5.6-luna"}
+        )
+
+        ids = [item["id"] for item in response["data"]]
+        self.assertIn("minimax/minimax-m3", ids)
+        self.assertIn("openai/gpt-5.6-luna", ids)
+        # 基准模型即使不在上游 rateLimitsByModel 里也应保留
+        self.assertIn("deepseek/deepseek-v4-flash", ids)
+        self.assertIn("mimo/mimo-v2.5", ids)
+        # 上游未报告的模型应从列表消失
+        self.assertNotIn("deepseek/deepseek-v4-pro", ids)
+        self.assertNotIn("moonshotai/kimi-k2.6", ids)
+
+    def test_models_response_maps_entitlement_id_to_catalog_id(self) -> None:
+        # 上游按 crof/glm-5.2 记账，目录里是可对话的 z-ai/glm-5.2
+        response = models_response({"crof/glm-5.2"})
+
+        self.assertIn(
+            "z-ai/glm-5.2", [item["id"] for item in response["data"]]
+        )
+
     def test_resolve_model_maps_agent_id(self) -> None:
         model = resolve_model("moonshotai/kimi-k2.6")
 
