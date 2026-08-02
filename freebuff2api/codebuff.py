@@ -22,7 +22,7 @@ CODEBUFF_JSON_USER_AGENT = "Bun/1.3.11"
 FREEBUFF_CLI_USER_AGENT = "Freebuff-CLI/0.0.105"
 CHAT_COMPLETIONS_USER_AGENT = (
     "ai-sdk/openai-compatible/0.0.0-test/codebuff "
-    "ai-sdk/provider-utils/3.0.20 runtime/browser"
+    "ai-sdk/provider-utils/3.0.25 runtime/browser"
 )
 
 
