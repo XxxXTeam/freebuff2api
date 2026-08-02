@@ -101,7 +101,16 @@ async def healthz(request: Request) -> dict[str, Any]:
 @app.get("/v1/models")
 async def list_models(request: Request) -> dict[str, Any]:
     _check_local_auth(request)
-    return models_response()
+    try:
+        upstream_model_ids = await _client(request).fetch_free_model_ids()
+    except CodebuffError as error:
+        logger.warning(
+            "model list refresh failed; falling back to static catalog: %s",
+            error,
+            exc_info=_settings(request).debug,
+        )
+        upstream_model_ids = None
+    return models_response(upstream_model_ids)
 
 
 @app.post("/v1/chat/completions")

@@ -27,6 +27,8 @@ FREEBUFF_MODELS: tuple[FreebuffModel, ...] = (
     FreebuffModel("moonshotai/kimi-k2.6", "base2-free-kimi"),
     FreebuffModel("minimax/minimax-m2.7", "base2-free"),
     FreebuffModel("minimax/minimax-m3", "base2-free-minimax-m3"),
+    FreebuffModel("openai/gpt-5.6-luna", "base2-free-luna"),
+    FreebuffModel("z-ai/glm-5.2", "base2-free-glm"),
     FreebuffModel("mimo/mimo-v2.5", "base2-free-mimo"),
     FreebuffModel("mimo/mimo-v2.5-pro", "base2-free-mimo-pro"),
 )
@@ -64,6 +66,17 @@ GEMINI_FREE_MODELS: tuple[FreebuffModel, ...] = (
 
 ALL_MODELS = FREEBUFF_MODELS + GEMINI_FREE_MODELS
 
+# 无论账号当前配额如何都可用、且不会出现在上游 rateLimitsByModel 里的基准模型。
+ALWAYS_AVAILABLE_MODEL_IDS = frozenset(
+    {"deepseek/deepseek-v4-flash", "mimo/mimo-v2.5"}
+    | {model.id for model in GEMINI_FREE_MODELS}
+)
+
+# 上游 rateLimitsByModel 里的配额 id 与可对话的 model id 不一致时的映射。
+_UPSTREAM_ID_TO_CATALOG_ID = {
+    "crof/glm-5.2": "z-ai/glm-5.2",
+}
+
 
 def resolve_model(requested: str | None) -> FreebuffModel:
     if not requested:
@@ -74,7 +87,19 @@ def resolve_model(requested: str | None) -> FreebuffModel:
     raise ValueError(f"Unsupported Freebuff model: {requested}")
 
 
-def models_response() -> dict[str, object]:
+def models_response(upstream_model_ids: set[str] | None = None) -> dict[str, object]:
+    if upstream_model_ids is None:
+        models = ALL_MODELS
+    else:
+        upstream = {
+            _UPSTREAM_ID_TO_CATALOG_ID.get(model_id, model_id)
+            for model_id in upstream_model_ids
+        }
+        models = [
+            model
+            for model in ALL_MODELS
+            if model.id in upstream or model.id in ALWAYS_AVAILABLE_MODEL_IDS
+        ]
     return {
         "object": "list",
         "data": [
@@ -84,7 +109,7 @@ def models_response() -> dict[str, object]:
                 "created": 0,
                 "owned_by": model.owned_by,
             }
-            for model in ALL_MODELS
+            for model in models
         ],
     }
 
